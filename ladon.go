@@ -63,6 +63,7 @@ func (l *Ladon) IsAllowed(r *Request) (err error) {
 func (l *Ladon) DoPoliciesAllow(r *Request, policies []Policy) (err error) {
 	var allowed = false
 	var deciders = Policies{}
+	var found = false
 
 	// Iterate through all policies
 	for _, p := range policies {
@@ -75,6 +76,9 @@ func (l *Ladon) DoPoliciesAllow(r *Request, policies []Policy) (err error) {
 			// no, continue to next policy
 			continue
 		}
+
+		// The policy was found, so error can't be 404 anymore
+		found = true
 
 		// Does the subject match with one of the policies?
 		// There are usually less subjects than resources which is why this is checked
@@ -110,6 +114,11 @@ func (l *Ladon) DoPoliciesAllow(r *Request, policies []Policy) (err error) {
 
 		allowed = true
 		deciders = append(deciders, p)
+	}
+
+	if !found {
+		l.auditLogger().LogRejectedAccessRequest(r, policies, deciders)
+		return errors.WithStack(ErrNotFound)
 	}
 
 	if !allowed {
